@@ -2675,47 +2675,57 @@ function handleDefinition({ mediaQuery, parent, type, t }) {
 }
 
 function getMediaQuery({ input, screens, assert }) {
-  const screen = screens[input]
-  assert(
-    Boolean(screen),
-    ({ color }) =>
-      `${color(
-        `${
-          input
-            ? `✕ ${color(input, 'errorLight')} wasn’t found in your`
-            : 'Specify a screen value from your'
-        } tailwind config`
-      )}\n\nTry one of these values:\n\n${Object.entries(screens)
-        .map(
-          ([k, v]) =>
-            `${color('-', 'subdued')} screen(${color(
-              `'${k}'`,
-              'success'
-            )})({ ... }) (${String(v)})`
+  const _input =
+    typeof input === 'string' ? input.split(',').map(s => s.trim()) : input
+
+  const _screens = _input.map(s => screens[s])
+
+  _input.forEach(i => {
+    assert(
+      Boolean(screens[i]),
+      ({ color }) =>
+        `${color(
+          `${
+            input
+              ? `✕ ${color(i, 'errorLight')} wasn’t found in your`
+              : 'Specify a screen value from your'
+          } tailwind config`
+        )}\n\nTry one of these values:\n\n${Object.entries(screens)
+          .map(
+            ([k, v]) =>
+              `${color('-', 'subdued')} screen(${color(
+                `'${k}'`,
+                'success'
+              )})({ ... }) (${String(v)})`
+          )
+          .join('\n')}`
+    )
+  })
+
+  const mediaQuery = _screens
+    .map(screen => {
+      if (typeof screen === 'string') {
+        return '(min-width: ' + screen + ')'
+      }
+
+      if (!Array.isArray(screen) && typeof screen.raw === 'string') {
+        return screen.raw
+      }
+
+      return (Array.isArray(screen) ? screen : [screen])
+        .map(range =>
+          [
+            typeof range.min === 'string' ? `(min-width: ${range.min} )` : null,
+            typeof range.max === 'string' ? `(max-width: ${range.max}) ` : null,
+          ]
+            .filter(Boolean)
+            .join(' and ')
         )
-        .join('\n')}`
-  )
-  let mediaQuery
+        .join(', ')
+    })
+    .join(', ')
 
-  if (typeof screen === 'string') {
-    mediaQuery = '@media (min-width: ' + screen + ')'
-  } else if (!Array.isArray(screen) && typeof screen.raw === 'string') {
-    mediaQuery = '@media ' + screen.raw
-  } else {
-    const string = (Array.isArray(screen) ? screen : [screen])
-      .map(range =>
-        [
-          typeof range.min === 'string' ? `(min-width: ${range.min} )` : null,
-          typeof range.max === 'string' ? `(max-width: ${range.max}) ` : null,
-        ]
-          .filter(Boolean)
-          .join(' and ')
-      )
-      .join(', ')
-    mediaQuery = string ? '@media ' + string : ''
-  } // const mediaQuery = `@media (min-width: ${String(screen)})`
-
-  return mediaQuery
+  return mediaQuery ? '@media ' + mediaQuery : ''
 }
 
 function handleScreenFunction({ references, t, coreContext }) {
